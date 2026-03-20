@@ -103,31 +103,6 @@ The frontend runs at `http://localhost:5173` and proxies API calls to port 5000.
 
 ---
 
-## 📊 API Endpoints
-
-### Auth
-| Method | Endpoint         | Access  | Description        |
-|--------|------------------|---------|--------------------|
-| POST   | /api/auth/login  | Public  | Admin login        |
-| GET    | /api/auth/me     | Private | Get current user   |
-
-### Leads
-| Method | Endpoint             | Access  | Description                 |
-|--------|----------------------|---------|-----------------------------|
-| POST   | /api/leads           | Public  | Create lead (contact form)  |
-| GET    | /api/leads           | Private | Get all leads + analytics   |
-| GET    | /api/leads/:id       | Private | Get single lead             |
-| PUT    | /api/leads/:id       | Private | Update lead                 |
-| DELETE | /api/leads/:id       | Private | Delete lead                 |
-
-### Notes
-| Method | Endpoint                 | Access  | Description       |
-|--------|--------------------------|---------|-------------------|
-| POST   | /api/leads/:id/notes     | Private | Add note to lead  |
-| GET    | /api/leads/:id/notes     | Private | Get lead notes    |
-
----
-
 ## ✨ Features
 
 - ✅ JWT-based admin authentication
