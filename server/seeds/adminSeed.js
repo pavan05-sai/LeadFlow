@@ -1,39 +1,51 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const User = require('../models/User');
 require('dotenv').config();
+const User = require('../models/User');
 
-/**
- * Seed script to create the default admin user.
- * Run: node seeds/adminSeed.js
- */
 const seedAdmin = async () => {
-  try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log('Connected to MongoDB');
+  const { MONGO_URI, ADMIN_NAME, ADMIN_EMAIL, ADMIN_PASSWORD } = process.env;
+  if (!MONGO_URI || !ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    throw new Error('MONGO_URI, ADMIN_EMAIL, and ADMIN_PASSWORD are required');
+  }
+  if (ADMIN_PASSWORD.length < 12 || /^(replace-with|change-me|your-)/i.test(ADMIN_PASSWORD)) {
+    throw new Error('ADMIN_PASSWORD must be a unique password of at least 12 characters');
+  }
 
-    // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: 'admin@crm.com' });
+  await mongoose.connect(MONGO_URI);
+  const email = ADMIN_EMAIL.trim().toLowerCase();
+  const existingUser = await User.findOne({ email });
 
-    if (existingAdmin) {
-      console.log('⚠️  Admin user already exists. Skipping seed.');
-      process.exit(0);
+  if (existingUser) {
+    if (existingUser.role !== 'admin') {
+      throw new Error('The configured admin email is already used by a non-admin account');
     }
+    console.log('Admin account already exists; no changes made.');
+    return;
+  }
 
-    await User.create({
-      name: 'Admin',
-      email: 'admin@crm.com',
-      password: 'admin123',
-    });
+  await User.create({
+    name: (ADMIN_NAME || 'Administrator').trim(),
+    email,
+    password: ADMIN_PASSWORD,
+    role: 'admin',
+  });
+  console.log('Admin account created.');
+};
 
-    console.log('✅ Admin user created successfully!');
-    console.log('   Email:    admin@crm.com');
-    console.log('   Password: admin123');
-    process.exit(0);
+const runSeed = async () => {
+  try {
+    await seedAdmin();
   } catch (error) {
-    console.error('❌ Seed error:', error.message);
-    process.exit(1);
+    console.error('Admin seed failed:', error.message);
+    process.exitCode = 1;
+  } finally {
+    try {
+      await mongoose.disconnect();
+    } catch (error) {
+      console.error('Admin seed cleanup failed:', error.message);
+      process.exitCode = 1;
+    }
   }
 };
 
-seedAdmin();
+runSeed();
