@@ -106,6 +106,40 @@ cd ../server
 npm test
 ```
 
+### Deploy the frontend to Vercel and the API to Render
+
+1. **Verify the Atlas connection string.** In Atlas, open **Database → Connect
+   → Drivers** and copy the Node.js connection URI. Set `MONGO_URI` in Render
+   to the complete URI, starting with `mongodb+srv://` (or `mongodb://` for a
+   standard deployment). Replace the username, password, cluster, and database
+   placeholders with the actual values. If the database password contains
+   reserved URL characters, URL-encode them. Keep the value in deployment
+   secrets; do not paste it into GitHub, source files, or chat.
+2. **Allow Render to reach Atlas.** In Atlas **Network Access**, allow the
+   outbound IP addresses shown for the Render service. In **Database Access**,
+   use a dedicated database user with a strong password and only the access
+   needed for the application.
+3. **Create the Render API.** In Render, create a **Blueprint** from this
+   repository and select `render.yaml`, or create a Node web service manually
+   with root directory `server`, build command `npm ci`, start command
+   `npm start`, and health-check path `/api/health`. Set `MONGO_URI`,
+   `CORS_ORIGINS`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` in Render's environment
+   settings. Use the Vercel production origin for `CORS_ORIGINS` (for example,
+   `https://your-app.vercel.app`), with no path or trailing slash. Render
+   generates `JWT_SECRET` when the Blueprint is created.
+4. **Create the first admin.** After the Render API is deployed and configured,
+   use its Shell to run `npm run seed` from the service root. The seed command
+   uses `ADMIN_EMAIL` and `ADMIN_PASSWORD` from the service environment and is
+   safe to rerun for the same existing admin.
+5. **Deploy the Vercel frontend.** Import this repository into Vercel and set
+   the project root directory to `client`. The checked-in `client/vercel.json`
+   configures the Vite build and SPA route fallback. Set `VITE_API_URL` in
+   Vercel's Production environment to the Render API URL ending in `/api`,
+   such as `https://your-api.onrender.com/api`, then deploy/redeploy.
+6. **Verify the deployment.** Open the Render URL plus `/api/health`; it must
+   return HTTP 200 and `"database":"connected"`. Then visit the Vercel site,
+   sign in with the admin credentials, and test the dashboard and contact form.
+
 ---
 
 ## 🔐 Administrator credentials
