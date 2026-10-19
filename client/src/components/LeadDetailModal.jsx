@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
+import { getUsers } from '../services/api';
 import { X, Send, MessageSquare, Mail, Phone, Globe, Clock } from 'lucide-react';
 
 const statusColors = {
@@ -24,9 +25,11 @@ const LeadDetailModal = ({ lead, onClose, onAddNote, onStatusChange }) => {
 
   useEffect(() => {
     if (user?.role?.toLowerCase() === 'admin') {
-      import('../services/api').then(m => m.getUsers()).then(({ data }) => {
+      getUsers().then(({ data }) => {
         // Filter out the current admin from the list of agents
         setAgents(data.filter(a => a._id !== user._id));
+      }).catch((error) => {
+        console.error('Failed to fetch agents for lead assignment:', error);
       });
     }
   }, [user]);

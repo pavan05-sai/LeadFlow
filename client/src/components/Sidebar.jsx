@@ -10,7 +10,6 @@ import {
 
 const Sidebar = ({ user, logout, isOpen, toggle }) => {
   const location = useLocation();
-  console.log('Sidebar user:', user); // DEBUG
 
   const isActive = (path) => location.pathname === path;
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { useLocation } from 'react-router-dom';
 import { getLeads, updateLead, deleteLead, addNote } from '../services/api';
 import Sidebar from '../components/Sidebar';
@@ -28,12 +28,14 @@ const Dashboard = () => {
   const [sourceFilter, setSourceFilter] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [order, setOrder] = useState('desc');
+  const [error, setError] = useState('');
   const [selectedLead, setSelectedLead] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const params = {};
       if (search) params.search = search;
@@ -47,6 +49,7 @@ const Dashboard = () => {
       setAnalytics(data.analytics);
     } catch (err) {
       console.error('Failed to fetch leads:', err);
+      setError(err.response?.data?.message || 'Failed to load leads. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -63,6 +66,7 @@ const Dashboard = () => {
       fetchLeads();
     } catch (err) {
       console.error('Failed to update lead:', err);
+      setError(err.response?.data?.message || 'Failed to update the lead.');
     }
   };
 
@@ -74,6 +78,7 @@ const Dashboard = () => {
       if (selectedLead?._id === id) setSelectedLead(null);
     } catch (err) {
       console.error('Failed to delete lead:', err);
+      setError(err.response?.data?.message || 'Failed to delete the lead.');
     }
   };
 
@@ -84,6 +89,7 @@ const Dashboard = () => {
       fetchLeads();
     } catch (err) {
       console.error('Failed to add note:', err);
+      setError(err.response?.data?.message || 'Failed to add the note.');
     }
   };
 
@@ -147,6 +153,12 @@ const Dashboard = () => {
               <StatsCards analytics={analytics} />
               <Charts />
             </>
+          )}
+
+          {error && (
+            <p role="alert" className="mb-4 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+              {error}
+            </p>
           )}
 
           {/* Filters */}

@@ -5,6 +5,7 @@ import { BarChart3, TrendingUp, Calendar } from 'lucide-react';
 const Charts = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -13,6 +14,7 @@ const Charts = () => {
         setReports(data);
       } catch (err) {
         console.error('Failed to fetch reports:', err);
+        setError(err.response?.data?.message || 'Failed to load monthly reports.');
       } finally {
         setLoading(false);
       }
@@ -26,6 +28,10 @@ const Charts = () => {
       <div className="glass rounded-2xl h-64 animate-pulse" />
     </div>
   );
+
+  if (error) {
+    return <p role="alert" className="mb-8 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{error}</p>;
+  }
 
   const maxLeads = Math.max(...reports.map(r => r.leads), 10);
 

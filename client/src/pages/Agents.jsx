@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { getUsers, createUser, deleteUser } from '../services/api';
 import Sidebar from '../components/Sidebar';
 import { UserPlus, Trash2, Mail, Shield, User as UserIcon } from 'lucide-react';
@@ -15,11 +15,13 @@ const Agents = () => {
 
   const fetchAgents = async () => {
     setLoading(true);
+    setError('');
     try {
       const { data } = await getUsers();
       setAgents(data);
     } catch (err) {
       console.error('Failed to fetch agents:', err);
+      setError(err.response?.data?.message || 'Failed to load agents. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -49,6 +51,7 @@ const Agents = () => {
       fetchAgents();
     } catch (err) {
       console.error('Failed to delete agent:', err);
+      setError(err.response?.data?.message || 'Failed to delete the agent.');
     }
   };
 
@@ -76,6 +79,12 @@ const Agents = () => {
               Add New Agent
             </button>
           </div>
+
+          {error && (
+            <p role="alert" className="mb-4 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+              {error}
+            </p>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading ? (
@@ -156,6 +165,7 @@ const Agents = () => {
                 <label className="block text-sm font-medium text-surface-300 mb-2">Password</label>
                 <input
                   required
+                  minLength={12}
                   type="password"
                   className="w-full px-4 py-3 bg-surface-900 border border-surface-800 rounded-xl text-surface-200 focus:outline-none focus:border-primary-500"
                   value={newAgent.password}

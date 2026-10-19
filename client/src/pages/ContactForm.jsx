@@ -13,7 +13,7 @@ const ContactForm = () => {
       await axios.post('/api/leads', form);
       setStatus('success');
       setForm({ name: '', email: '', phone: '', source: 'website' });
-    } catch (err) {
+    } catch {
       setStatus('error');
     }
   };

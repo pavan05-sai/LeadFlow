@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, LogIn, AlertCircle } from 'lucide-react';
 
@@ -102,9 +102,6 @@ const Login = () => {
             </button>
           </form>
 
-          <p className="text-surface-500 text-xs text-center mt-6">
-            Default: admin@crm.com / admin123
-          </p>
         </div>
       </div>
     </div>
