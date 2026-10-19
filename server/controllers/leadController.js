@@ -1,4 +1,20 @@
 const Lead = require('../models/Lead');
+const User = require('../models/User');
+const { canAccessLead } = require('../utils/leadAccess');
+
+const handleControllerError = (res, error, context) => {
+  console.error(context, error);
+  const status = error.name === 'ValidationError' || error.name === 'CastError'
+    ? 400
+    : error.code === 11000 ? 409 : 500;
+  res.status(status).json({
+    message: status === 400
+      ? 'Invalid request data'
+      : status === 409 ? 'A record with this information already exists' : 'Server error',
+  });
+};
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * @desc    Create new lead (public — from contact form)
@@ -16,7 +32,7 @@ const createLead = async (req, res) => {
     const lead = await Lead.create({ name, email, phone, source });
     res.status(201).json(lead);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleControllerError(res, error, 'Create Lead Error:');
   }
 };
 
@@ -29,24 +45,40 @@ const getLeads = async (req, res) => {
   try {
     const { status, source, search, sortBy, order } = req.query;
 
-    // Build filter object
+    if (status && !['new', 'contacted', 'converted'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid lead status' });
+    }
+    if (source && !['website', 'referral', 'social_media', 'advertisement', 'other'].includes(source)) {
+      return res.status(400).json({ message: 'Invalid lead source' });
+    }
+    if (search !== undefined && (typeof search !== 'string' || search.length > 100)) {
+      return res.status(400).json({ message: 'Search must be 100 characters or fewer' });
+    }
+
     const filter = {};
     if (status) filter.status = status;
     if (source) filter.source = source;
-    
+
     // Role-based filtering: Agents only see their assigned leads
     if (req.user.role === 'agent') {
       filter.assignedTo = req.user._id;
     }
 
-    if (search) {
+    if (search?.trim()) {
+      const searchPattern = escapeRegex(search.trim());
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { name: { $regex: searchPattern, $options: 'i' } },
+        { email: { $regex: searchPattern, $options: 'i' } },
       ];
     }
 
-    // Build sort object
+    const sortFields = ['createdAt', 'name', 'status'];
+    if (sortBy && !sortFields.includes(sortBy)) {
+      return res.status(400).json({ message: 'Invalid sort field' });
+    }
+    if (order && !['asc', 'desc'].includes(order)) {
+      return res.status(400).json({ message: 'Invalid sort order' });
+    }
     const sortField = sortBy || 'createdAt';
     const sortOrder = order === 'asc' ? 1 : -1;
 
@@ -76,7 +108,7 @@ const getLeads = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleControllerError(res, error, 'Get Leads Error:');
   }
 };
 
@@ -93,14 +125,13 @@ const getLeadById = async (req, res) => {
       return res.status(404).json({ message: 'Lead not found' });
     }
 
-    // Access control: Agents can only view their own leads
-    if (req.user.role === 'agent' && lead.assignedTo?._id.toString() !== req.user._id.toString()) {
+    if (!canAccessLead(lead, req.user)) {
       return res.status(403).json({ message: 'Not authorized to view this lead' });
     }
 
     res.json(lead);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleControllerError(res, error, 'Get Lead Error:');
   }
 };
 
@@ -115,6 +146,10 @@ const updateLead = async (req, res) => {
 
     if (!lead) {
       return res.status(404).json({ message: 'Lead not found' });
+    }
+
+    if (!canAccessLead(lead, req.user)) {
+      return res.status(403).json({ message: 'Not authorized to update this lead' });
     }
 
     const { name, email, phone, source, status, assignedTo, followUpDate } = req.body;
@@ -134,7 +169,11 @@ const updateLead = async (req, res) => {
       if (assignedTo === '' || assignedTo === null) {
         lead.assignedTo = undefined;
       } else {
-        lead.assignedTo = assignedTo;
+        const agent = await User.findOne({ _id: assignedTo, role: 'agent' });
+        if (!agent) {
+          return res.status(400).json({ message: 'Assigned user must be an agent' });
+        }
+        lead.assignedTo = agent._id;
       }
     }
     
@@ -146,12 +185,7 @@ const updateLead = async (req, res) => {
     const populatedLead = await Lead.findById(updatedLead._id).populate('assignedTo', 'name email');
     res.json(populatedLead);
   } catch (error) {
-    console.error('Update Lead Error:', error); // CRITICAL LOG
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'production' ? null : error.stack 
-    });
+    handleControllerError(res, error, 'Update Lead Error:');
   }
 };
 
@@ -168,10 +202,14 @@ const deleteLead = async (req, res) => {
       return res.status(404).json({ message: 'Lead not found' });
     }
 
+    if (!canAccessLead(lead, req.user)) {
+      return res.status(403).json({ message: 'Not authorized to delete this lead' });
+    }
+
     await lead.deleteOne();
     res.json({ message: 'Lead deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleControllerError(res, error, 'Delete Lead Error:');
   }
 };
 
@@ -188,17 +226,21 @@ const addNote = async (req, res) => {
       return res.status(404).json({ message: 'Lead not found' });
     }
 
-    const { text } = req.body;
-
-    if (!text) {
-      return res.status(400).json({ message: 'Note text is required' });
+    if (!canAccessLead(lead, req.user)) {
+      return res.status(403).json({ message: 'Not authorized to add notes to this lead' });
     }
 
-    lead.notes.push({ text });
+    const { text } = req.body;
+
+    if (typeof text !== 'string' || !text.trim() || text.trim().length > 2000) {
+      return res.status(400).json({ message: 'Note text must be between 1 and 2000 characters' });
+    }
+
+    lead.notes.push({ text: text.trim() });
     const updatedLead = await lead.save();
     res.status(201).json(updatedLead);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleControllerError(res, error, 'Add Note Error:');
   }
 };
 
@@ -215,9 +257,13 @@ const getNotes = async (req, res) => {
       return res.status(404).json({ message: 'Lead not found' });
     }
 
+    if (!canAccessLead(lead, req.user)) {
+      return res.status(403).json({ message: 'Not authorized to view notes for this lead' });
+    }
+
     res.json(lead.notes);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleControllerError(res, error, 'Get Notes Error:');
   }
 };
 
@@ -266,7 +312,7 @@ const getLeadReports = async (req, res) => {
 
     res.json(formattedReports);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleControllerError(res, error, 'Get Lead Reports Error:');
   }
 };
 

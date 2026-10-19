@@ -6,6 +6,7 @@ const noteSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Note text is required'],
       trim: true,
+      maxlength: 2000,
     },
     createdAt: {
       type: Date,
@@ -21,17 +22,21 @@ const leadSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Lead name is required'],
       trim: true,
+      maxlength: 100,
     },
     email: {
       type: String,
       required: [true, 'Email is required'],
       lowercase: true,
       trim: true,
+      maxlength: 254,
+      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address'],
     },
     phone: {
       type: String,
       trim: true,
       default: '',
+      maxlength: 40,
     },
     source: {
       type: String,
