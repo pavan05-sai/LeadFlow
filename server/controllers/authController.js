@@ -1,6 +1,11 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+const handleControllerError = (res, error) => {
+  console.error('Authentication Error:', error);
+  res.status(500).json({ message: 'Server error' });
+};
+
 // Generate JWT token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -33,7 +38,7 @@ const loginUser = async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleControllerError(res, error);
   }
 };
 
