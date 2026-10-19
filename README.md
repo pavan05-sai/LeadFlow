@@ -41,7 +41,7 @@ A complete Mini CRM for freelancers, agencies, and startups to manage client lea
 
 ### Prerequisites
 
-- **Node.js** v18+
+- **Node.js** v22.12 or later
 - **MongoDB** running locally or a MongoDB Atlas URI
 
 ### 1. Clone the repo
@@ -58,27 +58,30 @@ cd server
 npm install
 ```
 
-Create a `.env` file in `/server`:
+Copy `server/.env.example` to `server/.env` and provide your own values:
 ```env
 PORT=5000
-# For local local testing:
-MONGO_URI=mongodb://localhost:27017/client-lead-crm
-
-# Or for MongoDB Atlas Cloud:
-# MONGO_URI=mongodb+srv://<username>:<password>@cluster0.../client-lead-crm
-
-JWT_SECRET=your_super_secret_key_here
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster>/<database>
+JWT_SECRET=<random-secret-at-least-32-characters>
+CORS_ORIGINS=http://localhost:5173
+ADMIN_NAME=Administrator
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=<unique-password-at-least-12-characters>
 ```
 
-Seed the admin user:
+Create the initial administrator (the script never prints the password):
 ```bash
-node seeds/adminSeed.js
+npm run seed
 ```
 
-Start the backend:
+Start the API:
 ```bash
-node server.js
+npm start
 ```
+
+The API listens on `PORT` and exposes `GET /api/health` as a database-readiness
+check. Configure `CORS_ORIGINS` as a comma-separated list of exact frontend
+origins in production. Never commit `.env` files or use sample credentials.
 
 ### 3. Setup Frontend
 
@@ -89,17 +92,26 @@ npm run dev
 ```
 
 The frontend runs at `http://localhost:5173` and proxies API calls to port 5000.
+For a separate production frontend/API deployment, build with
+`VITE_API_URL=https://your-api.example.com/api` and set the API's
+`CORS_ORIGINS` to the frontend origin.
+
+### Production checks
+
+```bash
+cd client
+npm run lint
+npm run build
+cd ../server
+npm test
+```
 
 ---
 
-## 🔐 Default Admin Credentials
+## 🔐 Administrator credentials
 
-| Field    | Value          |
-|----------|----------------|
-| Email    | admin@crm.com  |
-| Password | admin123       |
-
-> ⚠️ Change these in production!
+There are no default credentials. Set `ADMIN_EMAIL` and a unique
+`ADMIN_PASSWORD` in the server environment before running `npm run seed`.
 
 ---
 
